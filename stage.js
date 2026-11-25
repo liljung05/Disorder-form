@@ -97,17 +97,21 @@
     probe.src = 'assets/paper.png';
     const g = $('.slurs');
     let lastKey = '';
+    // 패턴 변수: 검수 모드의 토큰 에디터에서 바꿀 수 있다(기본값이 위 지시문의 값)
+    const P = window.SLUR_PATTERN = { area: 17280, sizeMin: 18, sizeMax: 88, rot: 14, opMin: .035, opMax: .105 };
+    window.SLUR_PATTERN_DEFAULT = { ...P };
+    window.redrawPaper = () => { lastKey = ''; draw(); };
     function draw() {
       const W = innerWidth, H = innerHeight, key = `${Math.round(W / 40)}x${Math.round(H / 40)}`;
       if (key === lastKey) return; lastKey = key;
       g.setAttribute('viewBox', `0 0 ${W} ${H}`);
       g.replaceChildren();
-      const n = Math.round(clamp(W * H / 17280, 40, 160)), k = clamp(Math.sqrt(W * H) / 1440, .6, 1.2);
+      const n = Math.round(clamp(W * H / P.area, 20, 400)), k = clamp(Math.sqrt(W * H) / 1440, .6, 1.2);
       for (let i = 0; i < n; i++) {
         const w = SLURS[i % SLURS.length], a = noise(i, 1), b = noise(i, 2), c = noise(i, 3);
-        const size = (18 + Math.pow(c, 2.2) * 70) * k, x = (a * (W + 180) - 90).toFixed(0), y = (b * (H + 80)).toFixed(0);
-        const t = el('text', { x, y, transform: `rotate(${((noise(i, 4) - .5) * 14).toFixed(1)} ${x} ${y})`, 'font-size': size.toFixed(0) }, g);
-        t.style.opacity = (.035 + .07 * noise(i, 5)).toFixed(3);
+        const size = (P.sizeMin + Math.pow(c, 2.2) * (P.sizeMax - P.sizeMin)) * k, x = (a * (W + 180) - 90).toFixed(0), y = (b * (H + 80)).toFixed(0);
+        const t = el('text', { x, y, transform: `rotate(${((noise(i, 4) - .5) * P.rot).toFixed(1)} ${x} ${y})`, 'font-size': size.toFixed(0) }, g);
+        t.style.opacity = (P.opMin + (P.opMax - P.opMin) * noise(i, 5)).toFixed(3);
         t.textContent = w;
       }
     }
