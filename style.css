@@ -1,0 +1,365 @@
+/* ================================================================
+   질환의 형태 · 스타일 (v3: 미디어디자인Ⅰ 지침 반영)
+   규칙의 근거와 값 목록은 design-rules.md에 있다.
+   - 타이틀 좌표계는 원작과 같은 1920×1080. .canvas는 16:9로 맞추고 1cqw = 19.2px.
+     (원작 포스터의 비례를 지키기 위한 예외: 타이틀 글자만 cqw를 쓴다.)
+   - 그 밖의 모든 값은 아래 토큰에서 나온다. 토큰 밖의 숫자를 새로 쓰지 않는다.
+   ================================================================ */
+
+:root{
+  /* ── 색: 역할 이름으로 부른다 (대비는 design-rules.md §2에 측정값) ── */
+  --bg:#fbfaf7;            /* 종이 */
+  --surface:#ffffff;       /* 카드 */
+  --ink:#111111;           /* 본문 · 막대 */
+  --muted:#555555;         /* 보조 글 (흰 바탕 7.5:1) */
+  --line:#111111;
+  --accent:#2f5bff;        /* 포커스 링(타이틀) */
+  --viz-bg:#0b0b0c;        /* 3D 장면 */
+  --viz-ink:#ffffff;       /* 제목 · 수치 */
+  --viz-text:#e9e8e3;      /* 본문 */
+  --viz-soft:#c4c3bd;      /* 소제목 */
+  --viz-muted:#a3a29c;     /* 보조 글 */
+  --viz-subtle:#8f8e88;    /* 가장 옅은 글 (최소 4.5:1을 넘는 마지막 단계) */
+  --viz-line:#2b2b2c;
+  --viz-line-strong:#4a4a4c;
+  --viz-track:#262627;
+  --est:#f2c75c;           /* 추정값 */
+  --src:#7fe0c2;           /* 측정값 */
+  --color:#9c9f57;         /* 지금 질환의 색. JS가 바꾼다 */
+
+  /* ── 글자 크기: base 14px × 1.25^n, 6단계 (제안값) ── */
+  --step--1:11.2px;   /* 라벨 · 출처 · 배지 */
+  --step-0:14px;      /* 본문 */
+  --step-1:17.5px;    /* 강조 수치 · 현재 질환 이름 */
+  --step-2:21.9px;    /* 통계 숫자 */
+  --step-3:27.3px;    /* 휴대폰 질환 제목 */
+  --step-4:34.2px;    /* 질환 제목 */
+  --lh-body:1.7; --lh-tight:1.15;
+
+  /* ── 간격과 격자: 12 / 8 / 4 단 ── */
+  --space:8px;                      /* 간격 단위. 모든 여백은 이 값의 배수 */
+  --cols:12; --margin:24px; --gutter:24px;
+  --col:calc((100vw - 2 * var(--margin) - (var(--cols) - 1) * var(--gutter)) / var(--cols));
+  --panel-span:4;                   /* 설명 패널이 차지하는 단 수: 9–12단 */
+  --panel-w:calc(var(--panel-span) * var(--col) + var(--panel-span) * var(--gutter) + var(--margin));
+  --target:44px;                    /* 누를 수 있는 것의 최소 높이 */
+  --radius:999px; --radius-s:4px;
+
+  /* ── 겹침 순서 ── */
+  --z-decoration:0;   /* 종이 위의 말들 */
+  --z-content:1;      /* 타이틀 막대 · 3D */
+  --z-labels:5;       /* 3D 위 이름표 */
+  --z-panel:10;       /* 설명 패널 */
+  --z-control:20;     /* 조작 막대 · 측정 카드 */
+  --z-overlay:30;     /* 툴팁 */
+  --z-guide:40;       /* 격자 보기(G) */
+  --scrim-opacity:.94;              /* 패널 뒤 3D를 가리는 정도 */
+  --scrim:rgb(11 11 12 / var(--scrim-opacity));
+
+  /* ── 상태와 시간 ── */
+  --state-hover-opacity:.08;
+  --state-pressed-opacity:.16;
+  --state-disabled-opacity:.4;
+  --duration-state:200ms;          /* 버튼의 상태 변화 */
+  --duration-hover:520ms;          /* 막대가 살짝 벌어지는 시간 */
+  --duration-scene:1100ms;         /* 장면 전환(타이틀 → 3D) */
+  --duration-panel:900ms;
+  --ease-out:cubic-bezier(.2,.7,.25,1);
+  --ms:var(--duration-scene);      /* stage.js 호환 */
+}
+/* 태블릿: 8단, 패널은 6–8단(3단). 3D가 화면의 반 이상을 쓰게 한다 */
+@media (max-width:1023px){ :root{ --cols:8; --gutter:16px; --panel-span:3 } }
+/* 휴대폰: 4단. 패널은 아래에서 올라오는 시트가 된다 */
+@media (max-width:640px){ :root{ --cols:4; --margin:16px; --gutter:16px; --panel-w:100vw; --step-4:var(--step-3) } }
+
+*{box-sizing:border-box}
+html,body{margin:0;height:100%;background:var(--bg);color:var(--ink);font-family:"Noto Sans KR","Apple SD Gothic Neo",sans-serif;overflow:hidden}
+button{font:inherit;color:inherit}
+.sr{position:absolute;width:1px;height:1px;margin:-1px;overflow:hidden;clip-path:inset(50%);white-space:nowrap}
+
+/* ── 공통 버튼 모듈: 고정 구조(알약, 44px, 상태 5종) + 허용 변주(밝은/어두운 바탕) ── */
+.btn,.vbar button,.sl-actions button,.measure-body button,.sam-open{
+  position:relative;min-height:var(--target);min-width:var(--target);display:inline-flex;align-items:center;justify-content:center;gap:var(--space);
+  padding:0 calc(var(--space) * 2);border:1px solid var(--viz-line-strong);border-radius:var(--radius);background:transparent;color:var(--viz-soft);
+  font-size:var(--step--1);font-weight:700;letter-spacing:-.01em;cursor:pointer;isolation:isolate;
+  transition:border-color var(--duration-state),color var(--duration-state),background-color var(--duration-state),opacity var(--duration-state)}
+/* 상태층: 색을 새로 만들지 않고 글자색을 얇게 덮어 hover/pressed를 표시한다 */
+.btn::before,.vbar button::before,.sl-actions button::before,.measure-body button::before,.sam-open::before{
+  content:"";position:absolute;inset:0;border-radius:inherit;background:currentColor;opacity:0;z-index:-1;transition:opacity var(--duration-state)}
+:is(.btn,.vbar button,.sl-actions button,.measure-body button,.sam-open):hover:not(:disabled){color:var(--viz-ink);border-color:var(--viz-muted)}
+:is(.btn,.vbar button,.sl-actions button,.measure-body button,.sam-open):hover:not(:disabled)::before{opacity:var(--state-hover-opacity)}
+:is(.btn,.vbar button,.sl-actions button,.measure-body button,.sam-open):active:not(:disabled)::before{opacity:var(--state-pressed-opacity)}
+:is(.btn,.vbar button,.sl-actions button,.measure-body button,.sam-open):focus-visible{outline:2px solid var(--viz-ink);outline-offset:3px}
+:is(.btn,.vbar button,.sl-actions button,.measure-body button,.sam-open):disabled{opacity:var(--state-disabled-opacity);cursor:not-allowed}
+/* 선택됨: 질환색을 70%로 어둡게 해 흰 글자 대비를 16색 모두 5.2:1 이상으로 맞춘다 */
+.vbar button[aria-pressed="true"]{--pressed:color-mix(in srgb,var(--color) 70%,#000);background:var(--pressed);border-color:var(--pressed);color:var(--viz-ink)}
+
+/* ================= 장면 ================= */
+.stage{position:fixed;inset:0;overflow:hidden;background:var(--surface);transition:background var(--duration-scene)}
+.stage[data-phase="viz"]{background:var(--viz-bg)}
+
+/* 종이와 그 위에 적힌 말들 (생성 그래픽: 규칙은 stage.js의 paper() 주석) */
+.paper{position:absolute;inset:0;z-index:var(--z-decoration);background:var(--bg);transition:opacity var(--duration-scene)}
+.paper.has-image{background:var(--surface) url('assets/paper.png') center / cover}
+.paper.has-image .slurs{display:none}
+.slurs{position:absolute;inset:0;width:100%;height:100%;transform:translate(calc(var(--cx,0) * 26px),calc(var(--cy,0) * 18px)) scale(1.04);transition:transform .9s var(--ease-out),filter .8s}
+.slurs text{fill:var(--ink);font-weight:700;letter-spacing:-.05em;transition:opacity .5s}
+.stage:is([data-phase="11"],[data-phase="12"]) .slurs{filter:blur(3px)}
+.stage:not([data-phase="10"]):not([data-phase="11"]):not([data-phase="12"]) .paper{opacity:0}
+
+.canvas{position:absolute;z-index:var(--z-content);left:50%;top:50%;width:min(100vw,177.78vh);aspect-ratio:16/9;transform:translate(-50%,-50%);container-type:inline-size;transition:opacity 1.2s}
+.stage[data-phase="viz"] .canvas{opacity:0;pointer-events:none}
+
+/* 정신병자 타이포: 10에서는 온전, 11·12에서 위아래로 갈라진다 */
+.poster{position:absolute;inset:0;pointer-events:none;transition:opacity var(--duration-scene)}
+.poster-half{position:absolute;inset:0;transition:transform var(--duration-hover) var(--ease-out)}
+.above{clip-path:inset(0 0 49.4% 0)}.below{clip-path:inset(50.6% 0 0 0)}
+.glyph{position:absolute;object-fit:fill}
+.intertitle{position:absolute;top:50.6%;transform:translateY(-50%);font-size:2.81cqw;font-weight:750;letter-spacing:-.066em;white-space:nowrap}
+.poster-middle{position:absolute;inset:0;transition:opacity .3s}
+.stage:is([data-phase="11"],[data-phase="12"]) .canvas .above{transform:translateY(-17%)}
+.stage:is([data-phase="11"],[data-phase="12"]) .canvas .below{transform:translateY(17%)}
+.stage:not([data-phase="10"]) .poster-middle{opacity:0}
+.stage[data-phase="12"] .poster{opacity:0}
+.mast{position:absolute;right:4.9%;top:3.3%;margin:0;text-align:right;font-weight:750;letter-spacing:-.035em;font-size:max(var(--step--1),.86cqw);transition:opacity .4s}
+.stage:not([data-phase="10"]) .mast{opacity:0}
+.mposter{display:none}
+
+/* 막대 */
+.bars{position:absolute;inset:0;width:100%;height:100%;overflow:visible}
+.rows{transition:opacity .4s}
+.rows path{fill:var(--ink);cursor:pointer;outline:none;transition:fill var(--duration-state),opacity var(--duration-state),transform var(--duration-hover) var(--ease-out)}
+.rows path:hover{fill:#2a2a2a}
+.rows path:focus-visible{fill:#333;stroke:var(--accent);stroke-width:4px}
+.rows path.is-selected{opacity:0!important;pointer-events:none}
+.stage[data-phase="12"] .rows,.stage[data-phase="viz"] .rows{opacity:0;pointer-events:none}
+.stage[data-phase="10"]:not(.has-peeked) .rows path{animation:breathe 2.2s ease-in-out infinite;animation-delay:calc(var(--r,0) * 70ms)}
+@keyframes breathe{0%,100%{opacity:1}50%{opacity:.62}}
+.peek{font-size:28px;font-weight:800;letter-spacing:-.04em;opacity:0;pointer-events:none;transition:opacity var(--duration-state);paint-order:stroke;stroke:var(--surface);stroke-width:8px}
+.hero{outline:none;transition:fill var(--duration-hover)}
+.stage[data-phase="11"] .hero{cursor:pointer}
+.stage[data-phase="11"] .hero:hover{filter:brightness(1.06)}
+.stage[data-phase="11"] .hero:focus-visible{stroke:var(--accent);stroke-width:4px}
+.stage:not([data-phase="11"]) .hero{pointer-events:none}
+.words text{font-size:30px;font-weight:700;letter-spacing:-.05em;pointer-events:none;fill:#fff}
+.words{transform:translate(calc(var(--cx,0) * -36px),calc(var(--cy,0) * -16px));transition:transform .5s ease}
+
+/* 첫 행동 안내 */
+.prompt{position:absolute;right:4.9%;bottom:3.5%;margin:0;font-size:max(var(--step--1),.85cqw);color:var(--muted);background:#fffe;padding:.2em .5em;max-width:40ch}
+.stage[data-phase="11"] .prompt{right:auto;left:3.96%}
+.prompt:empty{display:none}
+
+/* ================= 3D ================= */
+.viz{position:absolute;inset:0;z-index:var(--z-content);width:100%;height:100%;display:block;opacity:0;pointer-events:none;transition:opacity 1.4s ease}
+.stage[data-phase="viz"] .viz{opacity:1;pointer-events:auto;cursor:grab}
+.stage[data-phase="viz"] .viz:active{cursor:grabbing}
+.viz-hint{position:absolute;z-index:var(--z-labels);left:var(--margin);bottom:calc(var(--space) * 2.5);margin:0;font-size:var(--step--1);color:var(--viz-subtle);opacity:0;transition:opacity .6s 2.2s;pointer-events:none;max-width:calc(100vw - var(--panel-w) - 2 * var(--margin))}
+.stage[data-phase="viz"] .viz-hint{opacity:1}
+
+.labels{position:absolute;inset:0;pointer-events:none;z-index:var(--z-labels)}
+.labels span{position:absolute;transform:translate(-50%,-50%);white-space:nowrap;font-size:var(--step--1);opacity:.8;font-weight:700;letter-spacing:-.02em;color:var(--viz-text);text-shadow:0 0 6px #000,0 0 2px #000;transition:opacity .3s}
+.labels span.axis{font-weight:500;color:var(--viz-muted)}
+.labels span.cur{color:var(--viz-ink);font-size:var(--step-0);opacity:1;z-index:2}
+.labels span.pick{pointer-events:auto;cursor:pointer;padding:6px 4px}
+.labels span.pick:hover{opacity:1;z-index:3;color:var(--viz-ink);text-decoration:underline}
+.tip{position:absolute;z-index:var(--z-overlay);pointer-events:none;background:#0b0b0cee;border:1px solid var(--viz-line-strong);border-radius:6px;padding:.45em .7em;font-size:var(--step--1);color:var(--viz-text);line-height:1.5;transform:translate(14px,14px);max-width:240px}
+.tip b{font-size:var(--step-1);color:var(--viz-ink);margin-right:.15em}
+
+/* ── 조작 막대: 1단부터 패널 앞 거터까지 ── */
+.vbar{position:absolute;z-index:var(--z-control);left:var(--margin);top:calc(var(--space) * 2);right:calc(var(--panel-w) + var(--gutter));display:flex;flex-wrap:wrap;align-items:center;gap:var(--space);
+  opacity:0;pointer-events:none;transform:translateY(-8px);transition:opacity .8s 1.2s,transform .8s 1.2s;color:var(--viz-soft)}
+.stage[data-phase="viz"] .vbar{opacity:1;pointer-events:auto;transform:none}
+.vbar button{background:#0b0b0caa;backdrop-filter:blur(6px)}
+.switcher{display:flex;align-items:center;gap:2px;border:1px solid var(--viz-line-strong);border-radius:var(--radius);background:#0b0b0caa;padding:0}
+.switcher button{border:0;background:none;padding:0;font-size:var(--step-1);line-height:1}
+.cur-box{display:grid;justify-items:center;gap:4px;min-width:9.5em;max-width:14em;padding:0 2px}
+.cur-name{max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:var(--step-0);font-weight:700;color:var(--viz-ink);line-height:1.2}
+/* 현재 위치: 16칸 중 지금(색), 본 것(밝은 회색), 안 본 것(어두운 회색) */
+.ticks{display:flex;gap:3px}
+.ticks i{width:5px;height:5px;border-radius:50%;background:var(--viz-line-strong);transition:background var(--duration-state),transform var(--duration-state)}
+.ticks i.seen{background:var(--viz-muted)}
+.ticks i.on{background:var(--color);filter:brightness(1.4);transform:scale(1.5)}
+.modes{display:flex}
+.modes button:first-child{border-radius:var(--radius) 0 0 var(--radius)}.modes button:last-child{border-radius:0 var(--radius) var(--radius) 0;margin-left:-1px}
+
+/* ── 설명 패널: 9–12단(태블릿 6–8단). 왼쪽 거터 폭만큼 3D가 비쳐 보이며 겹친다 ── */
+.panel{position:absolute;z-index:var(--z-panel);top:0;right:0;bottom:0;width:var(--panel-w);overflow:auto;overscroll-behavior:contain;
+  padding:calc(var(--space) * 10) var(--margin) calc(var(--space) * 5) var(--gutter);
+  color:var(--viz-text);background:linear-gradient(90deg,transparent,var(--scrim) var(--gutter));
+  font-size:var(--step-0);line-height:var(--lh-body);letter-spacing:-.02em;word-break:keep-all;overflow-wrap:anywhere;
+  opacity:0;transform:translateX(24px);transition:opacity var(--duration-panel) var(--duration-panel),transform var(--duration-panel) var(--duration-panel);scrollbar-width:thin;scrollbar-color:var(--viz-line-strong) transparent}
+.panel[hidden]{display:block;visibility:hidden}
+.stage[data-phase="viz"] .panel{opacity:1;transform:none;visibility:visible}
+.p-head{margin:0 0 var(--space)}
+.p-kicker{margin:0;font-size:var(--step--1);letter-spacing:.14em;color:var(--viz-muted)}
+.p-name{margin:.25em 0 0;font-size:var(--step-4);line-height:var(--lh-tight);font-weight:900;letter-spacing:-.05em;color:var(--viz-ink)}
+.p-name::after{content:"";display:block;width:42px;height:4px;margin-top:calc(var(--space) * 2);background:var(--color);filter:brightness(1.3)}
+.p-en{margin:.6em 0 0;font-size:var(--step--1);color:var(--viz-muted);letter-spacing:0}
+.p-sec{margin-top:calc(var(--space) * 3);padding-top:calc(var(--space) * 2);border-top:1px solid var(--viz-line)}
+.p-sec h3{margin:0 0 .7em;font-size:var(--step-0);font-weight:700;color:var(--viz-soft);display:flex;flex-wrap:wrap;align-items:center;gap:.6em}
+.p-sec p{margin:0}
+.p-concept{color:var(--viz-text)}
+.badge{display:inline-block;font-size:var(--step--1);font-weight:700;letter-spacing:.06em;line-height:1.5;padding:0 .55em;border-radius:3px}
+.badge.est{background:#3a2f12;color:var(--est);border:1px dashed #a88a3a}
+.badge.src{background:#12302a;color:var(--src);border:1px solid #2f7a63}
+.p-stats{display:grid;grid-template-columns:repeat(3,1fr);gap:var(--space);margin-top:calc(var(--space) * 2)}
+.p-stats div{border-top:1px solid var(--viz-line-strong);padding-top:6px;min-width:0}
+.p-stats span{display:block;font-size:var(--step--1);color:var(--viz-muted)}
+.p-stats b{font-size:var(--step-2);letter-spacing:-.04em;color:var(--viz-ink);font-variant-numeric:tabular-nums}
+.p-stats small{font-size:var(--step--1);color:var(--viz-muted);margin-left:2px}
+
+/* 정서 원형도 · VAD 막대 */
+.circ{width:100%;max-width:320px;display:block;margin:0 auto 6px;overflow:visible}
+.circ .ax{stroke:var(--viz-line-strong);stroke-width:1}
+.circ .ring{fill:none;stroke:var(--viz-line);stroke-width:1}
+.circ .q{fill:var(--viz-subtle);font-size:10px}
+.circ .axl{fill:var(--viz-muted);font-size:11px;font-weight:700}
+.circ .dot{cursor:pointer;transition:opacity var(--duration-state)}
+.circ .dot circle{stroke:var(--viz-bg);stroke-width:1.5}
+.circ .dot text{fill:var(--viz-soft);font-size:10px;opacity:0;pointer-events:none;paint-order:stroke;stroke:var(--viz-bg);stroke-width:3px}
+.circ .dot:is(:hover,:focus-visible) text,.circ .dot.cur text{opacity:1}
+.circ .dot:focus-visible{outline:none}.circ .dot:focus-visible circle{stroke:var(--viz-ink);stroke-width:2}
+.circ .dot.cur circle{stroke:var(--viz-ink);stroke-width:2}
+.circ .trail{fill:none;stroke:var(--color);stroke-width:2;stroke-linecap:round;filter:brightness(1.4);opacity:.8}
+.circ .live{fill:var(--viz-ink);stroke:var(--color);stroke-width:3}
+.circ .me{fill:none;stroke:var(--est);stroke-width:2;stroke-dasharray:3 2}
+.circ .me-post{fill:var(--est)}
+.circ .me-arrow{stroke:var(--est);stroke-width:1.5;marker-end:url(#arrow)}
+.circ-cap,.p-small{font-size:var(--step--1)!important;color:var(--viz-muted);margin:0 0 calc(var(--space) * 1.5)!important}
+.vad{display:grid;gap:var(--space);margin-bottom:calc(var(--space) * 1.5)}
+.vad-row{display:grid;grid-template-columns:2.6em 1fr 2.6em 3.4em;align-items:center;gap:var(--space);font-size:var(--step--1);color:var(--viz-muted)}
+.vad-r{text-align:left}.vad-l{text-align:right}
+.vad-row b{font-weight:500;color:var(--viz-soft);font-size:var(--step--1)}
+.vad-n{font-variant-numeric:tabular-nums;text-align:right}
+.vad-bar{position:relative;height:6px;background:var(--viz-track);border-radius:3px}
+.vad-bar::before{content:"";position:absolute;left:50%;top:-3px;bottom:-3px;width:1px;background:var(--viz-subtle)}
+.vad-bar i{position:absolute;top:50%;width:12px;height:12px;border-radius:50%;background:var(--color);filter:brightness(1.45);box-shadow:0 0 12px var(--color);transform:translate(-50%,-50%);left:calc(50% + var(--v,0) * 50%)}
+.p-why{font-size:var(--step--1);color:var(--viz-muted)}
+
+/* 슬라이더: 손잡이 줄 높이를 44px로 맞춘다 */
+.sliders{display:grid;gap:0}
+.sliders label{display:grid;grid-template-columns:5.4em 1fr 3em;align-items:center;gap:var(--space);min-height:var(--target);font-size:var(--step--1);color:var(--viz-soft)}
+.sliders output{text-align:right;font-variant-numeric:tabular-nums;color:var(--viz-ink)}
+.sliders input{accent-color:var(--color);width:100%;height:var(--target);margin:0;cursor:pointer}
+.sliders input:focus-visible{outline:2px solid var(--viz-ink);outline-offset:2px}
+.sl-actions{display:flex;flex-wrap:wrap;gap:var(--space);margin-top:var(--space)}
+
+/* 매핑 모듈: 고정 구조(출발 데이터 → 시각 요소 · 값 · 배지 · 설명)
+   허용 변주 = 측정(실선 왼쪽 띠) / 추정(점선 왼쪽 띠). 색과 순서는 바꾸지 않는다. */
+.map{list-style:none;margin:0;padding:0;display:grid;gap:var(--space)}
+.map li{display:grid;grid-template-columns:1fr auto;gap:2px var(--space);padding:var(--space) var(--space) calc(var(--space) * 1.5) calc(var(--space) * 1.5);margin:0 calc(var(--space) * -1);border-radius:var(--radius-s);border-left:2px solid transparent;cursor:default;transition:background-color var(--duration-state)}
+.map li.is-src{border-left:2px solid #2f7a63}
+.map li.is-est{border-left:2px dashed #a88a3a}
+.map li:is(:hover,:focus-visible){background:rgb(255 255 255 / var(--state-hover-opacity))}
+.map li:focus-visible{outline:2px solid var(--viz-ink);outline-offset:-2px}
+.map .m-from{font-size:var(--step--1);color:var(--viz-muted)}
+.map .m-to{grid-column:1;font-weight:700;color:var(--viz-ink)}
+.map .m-val{grid-row:1/3;grid-column:2;align-self:center;text-align:right;font-variant-numeric:tabular-nums;font-weight:700;font-size:var(--step-0);color:var(--viz-ink);max-width:9em}
+.map .m-val small{display:block;margin-top:4px;text-align:right}
+.map .m-note{grid-column:1/3;font-size:var(--step--1);color:var(--viz-muted)}
+
+.sds{margin:0;display:grid;gap:6px}
+.sds div{display:grid;grid-template-columns:6.5em 1fr 2.6em;align-items:center;gap:var(--space);font-size:var(--step--1)}
+.sds dt{color:var(--viz-soft)}.sds dd{margin:0;height:6px;background:var(--viz-track);border-radius:3px;overflow:hidden}
+.sds dd i{display:block;height:100%;background:var(--sw,var(--color));width:calc(var(--v) * 100%)}
+.sds b{text-align:right;font-variant-numeric:tabular-nums;font-weight:500}
+.sds div.is-max dt,.sds div.is-max b{color:var(--viz-ink);font-weight:700}
+.sds div.is-max dd{height:8px}
+
+.sources{margin:0;padding-left:1.1em;font-size:var(--step--1);color:var(--viz-muted)}
+.sources a{color:var(--viz-soft);text-underline-offset:3px}
+.sources a:hover{color:var(--viz-ink)}
+.sources a:focus-visible{outline:2px solid var(--viz-ink);outline-offset:2px}
+.p-limit{margin-top:calc(var(--space) * 1.5)!important;font-size:var(--step--1);color:var(--viz-muted)}
+.p-keys{margin-top:calc(var(--space) * 1.5)!important;font-size:var(--step--1);color:var(--viz-subtle)}
+.p-help{margin-top:calc(var(--space) * 1.5)!important;font-size:var(--step--1);color:var(--viz-soft)}
+
+/* 본 뒤 측정 */
+.p-measure .sam-scale{color:var(--viz-muted)}
+.p-measure .sam-scale input{border-color:var(--viz-muted);background:transparent}
+.p-measure .sam-scale input:checked{background:var(--est);border-color:var(--est)}
+.p-measure .sam-row legend{color:var(--viz-soft)}
+.measure-result{font-size:var(--step-0);color:var(--viz-text)}
+.measure-result b{color:var(--est)}
+.measure-grid{display:grid;grid-template-columns:auto 1fr 1fr 1fr;gap:4px calc(var(--space) * 1.5);font-size:var(--step--1);margin:var(--space) 0;font-variant-numeric:tabular-nums}
+.measure-grid span{color:var(--viz-muted)}
+
+/* ── SAM 측정 카드(보기 전): 1–3단(태블릿 1–4단). 첫 화면의 두 번째 행동 ── */
+.sam-card{position:absolute;z-index:var(--z-control);left:var(--margin);bottom:var(--margin);width:calc(3 * var(--col) + 2 * var(--gutter));min-width:280px;
+  padding:calc(var(--space) * 2) calc(var(--space) * 2) calc(var(--space) * 1.5);background:#fffffff2;border:1px solid var(--line);box-shadow:6px 6px 0 var(--line);
+  font-size:var(--step--1);color:var(--ink);transition:opacity .4s,transform .4s}
+.sam-card[hidden]{display:block;opacity:0;pointer-events:none;transform:translateY(10px)}
+.stage:not([data-phase="10"]) .sam-card{opacity:0;pointer-events:none}
+.sam-x{position:absolute;right:0;top:0;width:var(--target);height:var(--target);border:0;background:none;font-size:20px;cursor:pointer;color:var(--muted);border-radius:var(--radius)}
+.sam-x:hover{color:var(--ink);background:rgb(0 0 0 / var(--state-hover-opacity))}
+.sam-x:focus-visible{outline:2px solid var(--accent);outline-offset:-4px}
+.sam-eyebrow{margin:0;font-size:var(--step--1);letter-spacing:.14em;color:var(--muted)}
+.sam-title{margin:.3em 0 .8em;padding-right:var(--target);font-size:var(--step-1);font-weight:800;letter-spacing:-.04em;line-height:1.35}
+.sam-rows{display:grid;gap:var(--space)}
+.sam-row{border:0;margin:0;padding:0}
+.sam-row legend{font-size:var(--step--1);font-weight:700;margin-bottom:3px;padding:0}
+.sam-scale{display:grid;grid-template-columns:3em repeat(9,1fr) 3em;align-items:center;gap:2px;font-size:var(--step--1);color:var(--muted)}
+.sam-scale span:last-child{text-align:right}
+/* 원은 작아도 칸 전체가 눌린다: 원 둘레에 투명한 여백을 둔다 */
+.sam-scale input{appearance:none;-webkit-appearance:none;margin:0;width:100%;max-width:22px;justify-self:center;aspect-ratio:1;border:1.5px solid var(--ink);border-radius:50%;cursor:pointer;background:var(--surface);transition:background var(--duration-state),transform var(--duration-state);outline-offset:2px}
+.sam-scale input:hover{transform:scale(1.12)}
+.sam-scale input:checked{background:var(--ink);transform:scale(1.15)}
+.sam-scale input:focus-visible{outline:2px solid var(--accent)}
+.sam-scale input:nth-of-type(5){border-style:dashed}
+.sam-note{margin:.9em 0 0;font-size:var(--step--1);color:var(--muted);line-height:1.5}
+.sam-done{margin:.6em 0 0;font-weight:700;font-size:var(--step--1)}
+.sam-open{display:none}
+
+/* ── 격자 보기(G 키): 점검용. 기본은 숨김 ── */
+.grid-guide{position:fixed;inset:0;z-index:var(--z-guide);pointer-events:none;display:none;grid-template-columns:repeat(var(--cols),1fr);gap:var(--gutter);padding:0 var(--margin)}
+.stage.show-grid .grid-guide{display:grid}
+.grid-guide i{background:rgb(255 40 90 / .09);border-inline:1px solid rgb(255 40 90 / .35)}
+.grid-guide i:nth-child(n+13){display:none}
+.grid-guide b{position:fixed;left:var(--margin);bottom:var(--space);font:700 var(--step--1)/1.4 "Noto Sans KR",sans-serif;color:#ff285a;background:#fffe;padding:2px 6px}
+.grid-guide b::after{content:"12단 · 여백 24 · 거터 24 · 패널 9–12단"}
+
+/* ================= 태블릿 ================= */
+@media (max-width:1023px){
+  .grid-guide i:nth-child(n+9){display:none}
+  .grid-guide b::after{content:"8단 · 여백 24 · 거터 16 · 패널 6–8단"}
+  .sam-card{width:calc(4 * var(--col) + 3 * var(--gutter))}
+  .vbar .pause{order:5}
+}
+
+/* ================= 휴대폰 ================= */
+@media (max-width:640px){
+  .grid-guide i:nth-child(n+5){display:none}
+  .grid-guide b::after{content:"4단 · 여백 16 · 거터 16 · 패널은 아래 시트"}
+  .vbar{right:var(--margin);top:var(--space);gap:6px}
+  .vbar .pause{display:none}
+  .vbar .back{padding:0 12px}
+  .cur-box{min-width:6.5em;max-width:9em}
+  .panel{top:auto;height:52vh;padding:calc(var(--space) * 3.5) var(--margin) calc(var(--space) * 4);background:linear-gradient(180deg,transparent,var(--scrim) calc(var(--space) * 3))}
+  .viz-hint{display:none}
+  .p-stats b{font-size:var(--step-1)}
+
+  /* 측정 카드는 접힌 알약으로 시작해, 누르면 펼쳐진다 */
+  .sam-card{left:var(--margin);right:var(--margin);width:auto;min-width:0;bottom:var(--margin)}
+  .sam-card.is-collapsed{padding:0;border:0;box-shadow:none;background:none}
+  .sam-card.is-collapsed > :not(.sam-open){display:none}
+  .sam-card.is-collapsed .sam-open{display:flex;width:100%;background:var(--surface);color:var(--ink);border:1px solid var(--line);box-shadow:4px 4px 0 var(--line);font-size:var(--step-0)}
+  .sam-card.is-collapsed .sam-open:hover{color:var(--ink);border-color:var(--line)}
+  .sam-card.is-collapsed .sam-open:focus-visible{outline-color:var(--accent)}
+}
+/* 휴대폰 세로: 데스크톱 포스터를 줄이지 않고 다시 배치한다.
+   글자 덩어리는 위에(.mposter, 화면 폭 기준), 막대는 아래에 1.9배 크게. */
+@media (max-width:640px) and (orientation:portrait){
+  .mposter{display:block;position:absolute;z-index:var(--z-content);left:0;top:calc(var(--space) * 2 - 14vw);width:100vw;aspect-ratio:16/9;container-type:inline-size;pointer-events:none;transition:opacity var(--duration-scene)}
+  .mposter .poster{position:absolute;inset:0}
+  .mposter-mast{position:absolute;left:var(--margin);right:var(--margin);top:calc(var(--space) * 2 + 32vw);margin:0;font-size:var(--step--1);font-weight:750;letter-spacing:-.035em;z-index:var(--z-content);transition:opacity .4s}
+  .stage:not([data-phase="10"]) :is(.mposter,.mposter-mast){opacity:0}
+  .canvas{width:190vw;left:-45vw;top:calc(var(--space) * 5 + 38vw);transform:none}
+  .canvas .poster,.canvas .mast{display:none}
+  .prompt{position:fixed;left:var(--margin);right:var(--margin);bottom:calc(var(--target) + var(--margin) * 2);max-width:none;font-size:var(--step--1);text-align:center}
+  .stage[data-phase="11"] .prompt{left:var(--margin)}
+  .peek{font-size:44px;stroke-width:10px}
+}
+.mposter-mast{display:none}
+@media (max-width:640px) and (orientation:portrait){ .mposter-mast{display:block} }
+
+@media (prefers-reduced-motion:reduce){.stage *{transition-duration:0s!important;animation:none!important}}

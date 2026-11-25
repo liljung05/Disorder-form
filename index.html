@@ -1,0 +1,142 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="theme-color" content="#ffffff">
+<meta name="description" content="‘정신병자’라는 이름 뒤에 있는 열여섯 개의 질환. 막대를 눌러 각 질환을 수치로 해부하고 3D 형태로 시각화한다.">
+<title>질환의 형태</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;700;900&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="style.css">
+<script type="importmap">{ "imports": { "three": "./vendor/three.module.js" } }</script>
+</head>
+<body>
+<main class="stage" id="stage" data-phase="10" data-mode="form">
+  <h1 class="sr">정신병자 · 우리가 미워하는 우리의 이웃들</h1>
+  <div class="paper" aria-hidden="true"><svg class="slurs" viewBox="0 0 1920 1080" preserveAspectRatio="xMidYMid slice"></svg></div>
+
+  <div class="mposter" aria-hidden="true"></div>
+  <p class="mposter-mast" aria-hidden="true">‘정신병자’라는 이름 뒤의 열여섯 질환 × 수치로 그린 형태</p>
+
+  <div class="canvas">
+    <div class="poster" aria-hidden="true">
+      <div class="poster-half above">
+        <img class="glyph" alt="" src="assets/glyph-a.svg" style="left:19.67%;top:28.47%;width:14.35%;height:43.27%"><img class="glyph" alt="" src="assets/glyph-b.svg" style="left:5.09%;top:54.1%;width:15.7%;height:18.64%"><img class="glyph" alt="" src="assets/glyph-c.svg" style="left:4.79%;top:28.4%;width:12.04%;height:26.73%"><img class="glyph" alt="" src="assets/glyph-d.svg" style="left:14.82%;top:27.31%;width:6.38%;height:19.76%"><img class="glyph" alt="" src="assets/glyph-e.svg" style="left:29.68%;top:27.59%;width:4.01%;height:20.74%"><img class="glyph" alt="" src="assets/glyph-right.svg" style="left:65.42%;top:27.59%;width:29.79%;height:45.55%">
+      </div>
+      <div class="poster-half below">
+        <img class="glyph" alt="" src="assets/glyph-a.svg" style="left:19.67%;top:28.47%;width:14.35%;height:43.27%"><img class="glyph" alt="" src="assets/glyph-b.svg" style="left:5.09%;top:54.1%;width:15.7%;height:18.64%"><img class="glyph" alt="" src="assets/glyph-c.svg" style="left:4.79%;top:28.4%;width:12.04%;height:26.73%"><img class="glyph" alt="" src="assets/glyph-d.svg" style="left:14.82%;top:27.31%;width:6.38%;height:19.76%"><img class="glyph" alt="" src="assets/glyph-e.svg" style="left:29.68%;top:27.59%;width:4.01%;height:20.74%"><img class="glyph" alt="" src="assets/glyph-right.svg" style="left:65.42%;top:27.59%;width:29.79%;height:45.55%">
+      </div>
+      <div class="poster-middle"><span class="intertitle" style="left:8.7%">우리가</span><span class="intertitle" style="left:17.34%">미</span><span class="intertitle" style="left:21.72%">워하는</span><span class="intertitle" style="left:68.02%">우리의</span><span class="intertitle" style="left:77.03%">이</span><span class="intertitle" style="left:82.65%">웃</span><span class="intertitle" style="left:87.14%">들</span></div>
+    </div>
+    <p class="mast">‘정신병자’라는 이름 뒤의 열여섯 질환 × 수치로 그린 형태</p>
+
+    <svg class="bars" viewBox="0 0 1920 1080" preserveAspectRatio="xMidYMid meet" role="group" aria-label="16개 질환 막대">
+      <g class="world">
+        <g class="rows"></g>
+        <path class="hero" role="button" tabindex="-1" aria-label="선택한 질환 막대. 누르면 형태가 바뀝니다."/>
+        <g class="words" aria-hidden="true"></g>
+      </g>
+    </svg>
+    <p class="prompt" aria-hidden="true"></p>
+  </div>
+
+  <!-- 보기 전 측정: SAM(자기평가 마네킹) 9점 척도 -->
+  <form class="sam-card" id="sam-pre" aria-labelledby="sam-pre-title">
+    <button type="button" class="sam-open" aria-expanded="false">보기 전에 지금 느낌 재기 · 선택</button>
+    <button type="button" class="sam-x" aria-label="측정 닫기">×</button>
+    <p class="sam-eyebrow">보기 전에 · 측정</p>
+    <p class="sam-title" id="sam-pre-title">‘정신병자’라는 말을 보면<br>지금 어떤 느낌인가요?</p>
+    <div class="sam-rows"></div>
+    <p class="sam-note">이 기록은 이 브라우저에만 남는다. 다 보고 나서 한 번 더 재면 얼마나 달라졌는지 보여 준다.</p>
+  </form>
+
+  <canvas class="viz" aria-label="선택한 질환의 3D 시각화. 끌어서 돌려 볼 수 있습니다."></canvas>
+  <div class="labels" aria-hidden="true"></div>
+  <div class="tip" role="status" hidden></div>
+
+  <nav class="vbar" aria-label="시각화 조작">
+    <button type="button" class="back" title="Esc">← 타이틀</button>
+    <div class="switcher">
+      <button type="button" class="prev" aria-label="이전 질환" title="←">‹</button>
+      <span class="cur-box"><span class="cur-name"></span><span class="ticks" aria-hidden="true"></span></span>
+      <button type="button" class="next" aria-label="다음 질환" title="→">›</button>
+    </div>
+    <div class="modes" role="group" aria-label="보기 방식">
+      <button type="button" data-mode="form" aria-pressed="true" title="F">형태</button>
+      <button type="button" data-mode="space" aria-pressed="false" title="V">VAD 공간</button>
+    </div>
+    <button type="button" class="sound" aria-pressed="false" title="M">소리 꺼짐</button>
+    <button type="button" class="pause" aria-pressed="false" title="Space">자동 변화 일시정지</button>
+  </nav>
+
+  <aside class="panel" aria-live="polite" hidden>
+    <header class="p-head">
+      <p class="p-kicker">질환의 형태 <span class="p-index"></span></p>
+      <h2 class="p-name"></h2>
+      <p class="p-en"></p>
+      <div class="p-stats"></div>
+    </header>
+
+    <section class="p-sec">
+      <h3>이 질환은</h3>
+      <p class="p-concept"></p>
+    </section>
+
+    <section class="p-sec">
+      <h3>정서 원형도 위의 위치 <span class="badge est">추정</span></h3>
+      <svg class="circ" viewBox="0 0 320 320" role="img" aria-label="정서가(가로)와 각성도(세로) 평면 위 16개 질환의 위치"></svg>
+      <p class="circ-cap">가로는 정서가(쾌-불쾌), 세로는 각성도. 점의 크기는 통제감이다. 점을 누르면 그 질환으로 넘어간다. 꼬리는 지금 정서 좌표가 지나온 길.</p>
+      <div class="vad">
+        <div class="vad-row" data-k="0"><span class="vad-l">불쾌</span><span class="vad-bar"><i></i></span><span class="vad-r">쾌</span><b class="vad-n"></b></div>
+        <div class="vad-row" data-k="1"><span class="vad-l">이완</span><span class="vad-bar"><i></i></span><span class="vad-r">각성</span><b class="vad-n"></b></div>
+        <div class="vad-row" data-k="2"><span class="vad-l">무력</span><span class="vad-bar"><i></i></span><span class="vad-r">통제</span><b class="vad-n"></b></div>
+      </div>
+      <p class="p-why"></p>
+    </section>
+
+    <section class="p-sec">
+      <h3>직접 움직여 보기</h3>
+      <p class="p-small">추정값 대신 다른 좌표를 넣으면 형태와 궤도와 소리가 어떻게 달라지는지 볼 수 있다.</p>
+      <div class="sliders">
+        <label><span>정서가 V</span><input type="range" id="sl-v" min="-1" max="1" step="0.01"><output for="sl-v"></output></label>
+        <label><span>각성도 A</span><input type="range" id="sl-a" min="-1" max="1" step="0.01"><output for="sl-a"></output></label>
+        <label><span>통제감 D</span><input type="range" id="sl-d" min="-1" max="1" step="0.01"><output for="sl-d"></output></label>
+      </div>
+      <div class="sl-actions"><button type="button" class="sl-reset" disabled>추정값으로 되돌리기</button><button type="button" class="sl-mine" disabled>내 측정값 넣어 보기</button></div>
+    </section>
+
+    <section class="p-sec">
+      <h3>이 형태는 이렇게 만들어졌다</h3>
+      <p class="p-small">항목에 커서를 올리면 3D에서 해당 요소가 강조된다.</p>
+      <ol class="map"></ol>
+    </section>
+
+    <section class="p-sec p-sds" hidden>
+      <h3>생활 네 영역의 방해 <span class="badge src">측정</span></h3>
+      <dl class="sds"></dl>
+    </section>
+
+    <section class="p-sec p-measure">
+      <h3>측정 · 보기 전과 본 뒤</h3>
+      <div class="measure-body"></div>
+    </section>
+
+    <section class="p-sec p-src">
+      <h3>출처와 한계</h3>
+      <ul class="sources"></ul>
+      <p class="p-limit">측정값은 미국 NCS-R(2001–2003) 성인 표본의 DSM-IV 진단 기준 수치이며, 한국의 수치와 다를 수 있다. 정서 좌표(VAD)와 윤곽 규칙은 편집자의 해석이다. 이 작업은 진단 도구가 아니다.</p>
+      <p class="p-keys">키보드 ← → 질환 이동 · V 공간 보기 · F 형태 보기 · M 소리 · Space 일시정지 · Esc 타이틀 · G 격자 보기</p>
+      <p class="p-help">혼자 견디기 어렵다면 자살예방상담전화 109 · 정신건강위기상담 1577-0199 (24시간)</p>
+    </section>
+  </aside>
+  <p class="viz-hint" aria-hidden="true">끌어서 돌려 보기 · 스크롤로 확대 · 형태에 커서를 올리면 영역 점수</p>
+  <p class="live sr" aria-live="polite"></p>
+  <!-- 점검용 격자 보기: G 키 또는 주소 끝 ?grid -->
+  <div class="grid-guide" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><b></b></div>
+</main>
+<script src="data.js"></script>
+<script src="stage.js"></script>
+<script type="module" src="viz.js"></script>
+</body>
+</html>
