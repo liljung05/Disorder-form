@@ -145,8 +145,9 @@ button{font:inherit;color:inherit}
 .words{transform:translate(calc(var(--cx,0) * -36px),calc(var(--cy,0) * -16px));transition:transform .5s ease}
 
 /* 첫 행동 안내 */
-.prompt{position:absolute;right:4.9%;bottom:3.5%;margin:0;font-size:max(var(--step--1),.85cqw);color:var(--muted);background:#fffe;padding:.2em .5em;max-width:40ch}
-.stage[data-phase="11"] .prompt{right:auto;left:3.96%}
+/* 첫 행동 안내는 포스터 좌표가 아니라 화면 격자에 붙인다(오른쪽 끝 = 마지막 단의 끝선) */
+.prompt{position:absolute;right:var(--margin);bottom:3.5%;margin:0;font-size:max(var(--step--1),.85cqw);color:var(--muted);background:#fffe;padding:.2em .5em;max-width:40ch}
+.stage[data-phase="11"] .prompt{right:auto;left:var(--margin)}
 .prompt:empty{display:none}
 
 /* ================= 3D ================= */
@@ -289,7 +290,7 @@ button{font:inherit;color:inherit}
 .measure-grid span{color:var(--viz-muted)}
 
 /* ── SAM 측정 카드(보기 전): 1–3단(태블릿 1–4단). 첫 화면의 두 번째 행동 ── */
-.sam-card{position:absolute;z-index:var(--z-control);left:var(--margin);bottom:var(--margin);width:calc(3 * var(--col) + 2 * var(--gutter));min-width:280px;
+.sam-card{position:absolute;z-index:var(--z-control);left:var(--margin);bottom:var(--margin);width:calc(3 * var(--col) + 2 * var(--gutter));
   padding:calc(var(--space) * 2) calc(var(--space) * 2) calc(var(--space) * 1.5);background:#fffffff2;border:1px solid var(--line);box-shadow:6px 6px 0 var(--line);
   font-size:var(--step--1);color:var(--ink);transition:opacity .4s,transform .4s}
 .sam-card[hidden]{display:block;opacity:0;pointer-events:none;transform:translateY(10px)}
@@ -321,6 +322,9 @@ button{font:inherit;color:inherit}
 .grid-guide i:nth-child(n+13){display:none}
 .grid-guide b{position:fixed;left:var(--margin);bottom:var(--space);font:700 var(--step--1)/1.4 "Noto Sans KR",sans-serif;color:#ff285a;background:#fffe;padding:2px 6px}
 .grid-guide b::after{content:"12단 · 여백 24 · 거터 24 · 패널 9–12단"}
+
+/* 좁은 데스크톱(1024–1279): 3단이 280px보다 좁아지므로 4단을 쓴다 */
+@media (min-width:1024px) and (max-width:1279px){ .sam-card{width:calc(4 * var(--col) + 3 * var(--gutter))} }
 
 /* ================= 태블릿 ================= */
 @media (max-width:1023px){
@@ -369,3 +373,42 @@ button{font:inherit;color:inherit}
 @media (prefers-reduced-motion:reduce){.stage *{transition-duration:0s!important;animation:none!important}}
 
 .circ-views button{padding:0 calc(var(--space) * 1.5)}
+
+/* ── 검수 모드(O 키): 점검용 층. 규칙은 inspector.js 머리 주석 ── */
+.insp-layer{position:fixed;inset:0;z-index:calc(var(--z-guide) + 1);pointer-events:none}
+.insp-layer.base{background:repeating-linear-gradient(180deg,transparent 0 calc(var(--space) - 1px),rgb(0 160 255 / .22) calc(var(--space) - 1px) var(--space))}
+.insp-box{position:fixed;box-sizing:border-box;border-style:solid;border-color:rgb(255 64 160 / .22);outline:1px solid #ff40a0;outline-offset:0}
+.insp-box::after{content:"";position:absolute;inset:0;outline:1px dashed rgb(255 64 160 / .7)}
+.insp-box::before{content:attr(data-label);position:absolute;left:-1px;top:-1px;transform:translateY(-100%);font:700 10px/1.4 "Noto Sans KR",sans-serif;color:#fff;background:#ff40a0;padding:0 4px;white-space:nowrap;opacity:.9}
+.insp-box.hot{border-color:rgb(255 64 160 / .4);outline-width:2px;z-index:2}
+.insp-mar{position:fixed;background:rgb(255 150 40 / .18)}
+.insp-chk{position:fixed;outline:2px solid #19c37d;outline-offset:-1px}
+.insp-chk.bad{outline:2px solid #ff3b3b;background:rgb(255 59 59 / .08)}
+.insp-chk::before{content:attr(data-label);position:absolute;right:0;bottom:0;font:700 10px/1.4 "Noto Sans KR",sans-serif;color:#fff;background:#19c37d;padding:0 4px;white-space:nowrap}
+.insp-chk.bad::before{background:#ff3b3b}
+.insp{position:fixed;z-index:calc(var(--z-guide) + 2);left:var(--margin);top:calc(var(--target) + var(--space) * 4);width:min(320px,calc(100vw - 2 * var(--margin)));max-height:min(72vh,640px);overflow:auto;
+  background:var(--surface);color:var(--ink);border:1px solid var(--line);box-shadow:6px 6px 0 var(--line);padding:0 calc(var(--space) * 2) calc(var(--space) * 2);font-size:var(--step--1);line-height:1.5;
+  animation:insp-in var(--duration-state) var(--ease-out)}
+@keyframes insp-in{from{opacity:0;transform:translateY(6px)}}
+.insp[hidden]{display:none}
+.insp-h{position:sticky;top:0;display:flex;align-items:center;gap:var(--space);margin:0 calc(var(--space) * -2) var(--space);padding:0 0 0 calc(var(--space) * 2);background:var(--surface);border-bottom:1px solid var(--line)}
+.insp-h b{font-size:var(--step-0)}
+.insp-h span{color:var(--muted);flex:1}
+.insp-x{width:var(--target);height:var(--target);border:0;background:none;font-size:20px;cursor:pointer;color:var(--muted)}
+.insp-x:hover{color:var(--ink);background:rgb(0 0 0 / var(--state-hover-opacity))}
+.insp-x:focus-visible{outline:2px solid var(--accent);outline-offset:-4px}
+.insp-t{display:grid;grid-template-columns:1fr 1fr;gap:0 var(--space)}
+.insp-t label{display:flex;align-items:center;gap:6px;min-height:var(--target);cursor:pointer}
+.insp-t input{width:18px;height:18px;accent-color:#ff40a0;margin:0}
+.insp-t input:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.insp-v{display:grid;grid-template-columns:1fr 1fr;gap:4px var(--space);margin:var(--space) 0;padding:var(--space) 0;border-block:1px solid #ddd}
+.insp-v div{display:flex;flex-direction:column}
+.insp-v dt{color:var(--muted)}.insp-v dd{margin:0;font-weight:700;font-variant-numeric:tabular-nums}
+.insp-sum{margin:0 0 4px;font-weight:700}
+.insp-list{list-style:none;margin:0;padding:0;display:grid;gap:2px}
+.insp-list li{display:grid;grid-template-columns:1.4em 1fr;gap:0 4px}
+.insp-list li span{font-weight:900;color:#0a8a55}.insp-list li.bad span{color:#d11}
+.insp-list em{grid-column:2;font-style:normal;color:var(--muted)}
+.insp-foot{margin:var(--space) 0 0;color:var(--muted)}
+.insp-tip{position:fixed;z-index:calc(var(--z-guide) + 3);pointer-events:none;white-space:pre;background:#111;color:#fff;font:500 11px/1.5 "Noto Sans KR",sans-serif;padding:6px 8px;border-left:3px solid #ff40a0}
+@media (max-width:640px){ .insp{top:auto;bottom:var(--margin);max-height:48vh} }
