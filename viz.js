@@ -247,37 +247,100 @@ function tweenCam(to, dur, opts = {}) {
   camTween = { from: { pos: camera.position.clone(), tgt: controls.target.clone(), fov: camera.fov }, to, t0: performance.now(), dur: reduced() ? 1 : dur, delay: 0, ...opts };
 }
 
-/* ---------- 정서 원형도(패널) ---------- */
-const circ = $('.circ'), NS = 'http://www.w3.org/2000/svg', CR = 128, CC = 160;
-const cxy = (v, a) => [CC + v * CR, CC - a * CR];
+/* ---------- 정서 공간 지도(패널): V·A·D 세 축의 3차원 지도 ----------
+   가로 = 정서가 V, 세로 = 각성도 A, 깊이 = 통제감 D. 정사영(orthographic)으로 SVG에 그린다.
+   ‘정면’ 보기(yaw 0, pitch 0)는 Russell 원형도(V·A 평면)와 같다. 끌어서 돌리고, 손을 떼면 천천히 돈다. */
+const circ = $('.circ'), NS = 'http://www.w3.org/2000/svg', CC = 160, CS = 92;
 const svgEl = (tag, attrs, parent) => { const n = document.createElementNS(NS, tag); for (const [k, v] of Object.entries(attrs)) n.setAttribute(k, v); parent?.append(n); return n; };
-let circDots = [], circTrail, circLive, circMe;
+const setA = (n, attrs) => { for (const k in attrs) n.setAttribute(k, typeof attrs[k] === 'number' ? attrs[k].toFixed(1) : attrs[k]); };
+const view = { yaw: -.62, pitch: .38, tYaw: -.62, tPitch: .38, auto: true, drag: null, moved: false, idleT: 0 };
+function proj(v, a, d) {
+  const cy = Math.cos(view.yaw), sy = Math.sin(view.yaw), cp = Math.cos(view.pitch), sp = Math.sin(view.pitch);
+  const x1 = v * cy + d * sy, z1 = -v * sy + d * cy;
+  const y2 = a * cp - z1 * sp, z2 = a * sp + z1 * cp;
+  return [CC + x1 * CS, CC - y2 * CS, z2];
+}
+let circDots = [], circTrail, circLive, circMe, circEdges = [], circAxes = [], circAxL = [], circDrops = [], circBp, circPlane, circLayer;
+const CUBE = [[-1,-1,-1],[1,-1,-1],[1,1,-1],[-1,1,-1],[-1,-1,1],[1,-1,1],[1,1,1],[-1,1,1]];
+const EDGES = [[0,1],[1,2],[2,3],[3,0],[4,5],[5,6],[6,7],[7,4],[0,4],[1,5],[2,6],[3,7]];
+const AXES = [[[-1.12,0,0],[1.12,0,0],'불쾌 −V','쾌 +V'],[[0,-1.12,0],[0,1.12,0],'이완 −A','각성 +A'],[[0,0,-1.12],[0,0,1.12],'무력 −D','통제 +D']];
 (function buildCirc() {
   const defs = svgEl('defs', {}, circ);
   const mk = svgEl('marker', { id: 'arrow', viewBox: '0 0 10 10', refX: 8, refY: 5, markerWidth: 6, markerHeight: 6, orient: 'auto-start-reverse' }, defs);
   svgEl('path', { d: 'M0 0L10 5L0 10z', fill: '#f2c75c' }, mk);
-  svgEl('circle', { class: 'ring', cx: CC, cy: CC, r: CR }, circ); svgEl('circle', { class: 'ring', cx: CC, cy: CC, r: CR / 2 }, circ);
-  svgEl('line', { class: 'ax', x1: CC - CR - 8, y1: CC, x2: CC + CR + 8, y2: CC }, circ); svgEl('line', { class: 'ax', x1: CC, y1: CC - CR - 8, x2: CC, y2: CC + CR + 8 }, circ);
-  [['쾌', CC + CR + 12, CC + 4, 'start'], ['불쾌', CC - CR - 12, CC + 4, 'end'], ['각성', CC, CC - CR - 14, 'middle'], ['이완', CC, CC + CR + 22, 'middle']].forEach(([t, x, y, a]) => { const n = svgEl('text', { class: 'axl', x, y, 'text-anchor': a }, circ); n.textContent = t; });
-  [['긴장 · 분노 · 공포', -1, 1], ['흥분 · 기쁨', 1, 1], ['슬픔 · 무기력', -1, -1], ['평온 · 이완', 1, -1]].forEach(([t, sx, sy]) => { const n = svgEl('text', { class: 'q', x: CC + sx * 80, y: CC - sy * 104, 'text-anchor': 'middle' }, circ); n.textContent = t; });
-  const bp = DATA.find(d => d.vad2), [a1, b1] = cxy(bp.vad[0], bp.vad[1]), [a2, b2] = cxy(bp.vad2[0], bp.vad2[1]);
-  svgEl('line', { x1: a1, y1: b1, x2: a2, y2: b2, stroke: bp.color, 'stroke-dasharray': '3 3', 'stroke-width': 1.5 }, circ);
+  circPlane = svgEl('polygon', { class: 'plane' }, circ);           // D = 0인 V·A 평면(원형도)
+  circEdges = EDGES.map(() => svgEl('line', { class: 'ring' }, circ));
+  circAxes = AXES.map(() => svgEl('line', { class: 'ax' }, circ));
+  circAxL = AXES.flatMap(([, , lo, hi]) => [lo, hi].map(t => { const n = svgEl('text', { class: 'axl', 'text-anchor': 'middle' }, circ); n.textContent = t; return n; }));
+  circDrops = DATA.map(d => svgEl('line', { class: 'drop', stroke: d.color }, circ));
+  const bp = DATA.find(d => d.vad2);
+  circBp = svgEl('line', { stroke: bp.color, 'stroke-dasharray': '3 3', 'stroke-width': 1.5 }, circ);
   circTrail = svgEl('polyline', { class: 'trail', points: '' }, circ);
   circMe = svgEl('g', {}, circ);
+  circLayer = svgEl('g', {}, circ);
   circDots = DATA.map((d, i) => {
-    const g = svgEl('g', { class: 'dot', tabindex: 0, role: 'button', 'aria-label': `${d.name}로 이동` }, circ);
-    (d.vad2 ? [d.vad, d.vad2] : [d.vad]).forEach((v, k) => { const [x, y] = cxy(v[0], v[1]); svgEl('circle', { cx: x, cy: y, r: (k ? 3 : 4) + 4 * (v[2] + 1) / 2, fill: d.color }, g); });
-    const [x, y] = cxy(d.vad[0], d.vad[1]); const t = svgEl('text', { x: x + 9, y: y - 8 }, g); t.textContent = d.name;
-    g.addEventListener('click', () => select(i)); g.addEventListener('keydown', e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); select(i); } });
+    const g = svgEl('g', { class: 'dot', tabindex: 0, role: 'button', 'aria-label': `${d.name}로 이동. 정서가 ${fmt(d.vad[0])}, 각성도 ${fmt(d.vad[1])}, 통제감 ${fmt(d.vad[2])} (추정)` }, circLayer);
+    g._c = (d.vad2 ? [d.vad, d.vad2] : [d.vad]).map((v, k) => svgEl('circle', { r: k ? 3.5 : 5, fill: d.color }, g));
+    g._t = svgEl('text', {}, g); g._t.textContent = d.name;
+    g.addEventListener('click', () => { if (!view.moved) select(i); });
+    g.addEventListener('keydown', e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); select(i); } });
     return g;
   });
-  circLive = svgEl('circle', { class: 'live', r: 5, cx: CC, cy: CC }, circ);
+  circLive = svgEl('circle', { class: 'live', r: 5 }, circ);
+  // 끌어서 돌리기. 터치는 가로로만 돌려 패널 세로 스크롤을 막지 않는다.
+  circ.addEventListener('pointerdown', e => { view.drag = { x: e.clientX, y: e.clientY, yaw: view.tYaw, pitch: view.tPitch, touch: e.pointerType === 'touch' }; view.moved = false; view.auto = false; });
+  addEventListener('pointermove', e => {
+    const g = view.drag; if (!g) return;
+    const dx = e.clientX - g.x, dy = e.clientY - g.y;
+    if (Math.hypot(dx, dy) > 4) view.moved = true;
+    view.tYaw = g.yaw + dx * .012;
+    if (!g.touch) view.tPitch = clamp(g.pitch + dy * .01, -1.45, 1.45);
+  });
+  addEventListener('pointerup', () => { if (view.drag) { view.drag = null; view.idleT = performance.now(); setTimeout(() => { view.moved = false; }, 0); } });
+  panel.querySelectorAll('.circ-views button').forEach(b => b.addEventListener('click', () => setCircView(b.dataset.view)));
 })();
+function setCircView(name) {
+  const V = { orbit: [-.62, .38], va: [0, 0], vd: [0, 1.45], ad: [-Math.PI / 2, 0] }[name] || [-.62, .38];
+  // 가장 가까운 방향으로 돌아가도록 yaw를 2π 단위로 맞춘다
+  const k = Math.round((view.tYaw - V[0]) / (Math.PI * 2));
+  view.tYaw = V[0] + k * Math.PI * 2; view.tPitch = V[1]; view.auto = name === 'orbit'; view.idleT = 0;
+  panel.querySelectorAll('.circ-views button').forEach(b => b.setAttribute('aria-pressed', b.dataset.view === name));
+}
+function drawCirc(dt) {
+  if (view.auto && !paused && !reduced()) view.tYaw += dt * .18;
+  else if (!view.drag && view.idleT && performance.now() - view.idleT > 6000) { view.auto = true; view.idleT = 0; panel.querySelectorAll('.circ-views button').forEach(b => b.setAttribute('aria-pressed', b.dataset.view === 'orbit')); }
+  const kk = view.drag ? 1 : Math.min(1, dt * 6);
+  view.yaw += (view.tYaw - view.yaw) * kk; view.pitch += (view.tPitch - view.pitch) * kk;
+  const P = CUBE.map(c => proj(...c));
+  EDGES.forEach(([a, b], k) => setA(circEdges[k], { x1: P[a][0], y1: P[a][1], x2: P[b][0], y2: P[b][1] }));
+  setA(circPlane, { points: [[-1,-1],[1,-1],[1,1],[-1,1]].map(([v, a]) => proj(v, a, 0).slice(0, 2).map(n => n.toFixed(1)).join(',')).join(' ') });
+  AXES.forEach(([p0, p1], k) => {
+    const A = proj(...p0), B = proj(...p1);
+    setA(circAxes[k], { x1: A[0], y1: A[1], x2: B[0], y2: B[1] });
+    const out = (p, n, s) => { const q = proj(...p.map(x => x * 1.16)); setA(n, { x: q[0], y: q[1] + 4 }); n.style.opacity = (.55 + .45 * clamp((q[2] + 1.2) / 2.4)).toFixed(2); };
+    out(p0, circAxL[k * 2]); out(p1, circAxL[k * 2 + 1]);
+  });
+  const order = [];
+  DATA.forEach((d, i) => {
+    const g = circDots[i];
+    (d.vad2 ? [d.vad, d.vad2] : [d.vad]).forEach((v, k) => { const q = proj(...v); setA(g._c[k], { cx: q[0], cy: q[1], r: (k ? 3 : 4) + 1.6 * clamp((q[2] + 1.6) / 3.2) }); });
+    const q = proj(...d.vad), f = proj(d.vad[0], -1, d.vad[2]);
+    setA(g._t, { x: q[0] + 9, y: q[1] - 8 });
+    setA(circDrops[i], { x1: q[0], y1: q[1], x2: f[0], y2: f[1] });
+    order.push([q[2], g]);
+  });
+  order.sort((a, b) => a[0] - b[0]).forEach(([, g]) => circLayer.append(g)); // 가까운 점을 위에
+  const bp = DATA.find(d => d.vad2), b1 = proj(...bp.vad), b2 = proj(...bp.vad2);
+  setA(circBp, { x1: b1[0], y1: b1[1], x2: b2[0], y2: b2[1] });
+  const L = proj(...vadNow); setA(circLive, { cx: L[0], cy: L[1] });
+  circTrail.setAttribute('points', trail.map(p => proj(...p).slice(0, 2).map(n => n.toFixed(1)).join(',')).join(' '));
+  drawMe();
+}
 function drawMe() {
   circMe.replaceChildren();
   const m = window.SAM?.get() || {};
-  if (m.pre) { const [x, y] = cxy(m.pre[0], m.pre[1]); svgEl('circle', { class: 'me', cx: x, cy: y, r: 7 }, circMe); const t = svgEl('text', { x: x + 10, y: y + 14, fill: '#f2c75c', 'font-size': 9.5 }, circMe); t.textContent = m.post ? '보기 전의 나' : '나'; }
-  if (m.post) { const [x, y] = cxy(m.post[0], m.post[1]); if (m.pre) { const [a, b] = cxy(m.pre[0], m.pre[1]); svgEl('line', { class: 'me-arrow', x1: a, y1: b, x2: x, y2: y }, circMe); } svgEl('circle', { class: 'me-post', cx: x, cy: y, r: 5 }, circMe); const t = svgEl('text', { x: x + 9, y: y - 8, fill: '#f2c75c', 'font-size': 9.5 }, circMe); t.textContent = '본 뒤의 나'; }
+  if (m.pre) { const [x, y] = proj(...m.pre); svgEl('circle', { class: 'me', cx: x, cy: y, r: 7 }, circMe); const t = svgEl('text', { x: x + 10, y: y + 14, fill: '#f2c75c', 'font-size': 10 }, circMe); t.textContent = m.post ? '보기 전의 나' : '나'; }
+  if (m.post) { const [x, y] = proj(...m.post); if (m.pre) { const [a, b] = proj(...m.pre); svgEl('line', { class: 'me-arrow', x1: a, y1: b, x2: x, y2: y }, circMe); } svgEl('circle', { class: 'me-post', cx: x, cy: y, r: 5 }, circMe); const t = svgEl('text', { x: x + 9, y: y - 8, fill: '#f2c75c', 'font-size': 10 }, circMe); t.textContent = '본 뒤의 나'; }
 }
 
 /* ---------- 패널 ---------- */
@@ -487,9 +550,9 @@ function loop(now) {
   const target = override || currentVAD(d, dyn);
   for (let k = 0; k < 3; k++) vadNow[k] += (target[k] - vadNow[k]) * Math.min(1, dt * (override ? 6 : 3));
   panel.querySelectorAll('.vad-row').forEach((row, k) => { row.querySelector('i').style.setProperty('--v', vadNow[k].toFixed(3)); row.querySelector('.vad-n').textContent = fmt(vadNow[k]); });
-  const [lx, ly] = cxy(vadNow[0], vadNow[1]); circLive.setAttribute('cx', lx.toFixed(1)); circLive.setAttribute('cy', ly.toFixed(1));
   const lastP = trail[trail.length - 1];
-  if (!lastP || Math.hypot(lastP[0] - lx, lastP[1] - ly) > 1.2) { trail.push([lx.toFixed(1), ly.toFixed(1)]); if (trail.length > 140) trail.shift(); circTrail.setAttribute('points', trail.map(p => p.join(',')).join(' ')); }
+  if (!lastP || Math.hypot(lastP[0] - vadNow[0], lastP[1] - vadNow[1], lastP[2] - vadNow[2]) > .012) { trail.push(vadNow.slice()); if (trail.length > 140) trail.shift(); }
+  drawCirc(dt);
   if (!override) sliders.forEach((s, k) => { if (document.activeElement !== s) { s.value = vadNow[k]; outs[k].textContent = fmt(vadNow[k]); } });
   sound.update(vadNow);
 

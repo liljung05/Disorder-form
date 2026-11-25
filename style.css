@@ -78,21 +78,21 @@ button{font:inherit;color:inherit}
 .sr{position:absolute;width:1px;height:1px;margin:-1px;overflow:hidden;clip-path:inset(50%);white-space:nowrap}
 
 /* ── 공통 버튼 모듈: 고정 구조(알약, 44px, 상태 5종) + 허용 변주(밝은/어두운 바탕) ── */
-.btn,.vbar button,.sl-actions button,.measure-body button,.sam-open{
+.btn,.vbar button,.sl-actions button,.measure-body button,.sam-open,.circ-views button{
   position:relative;min-height:var(--target);min-width:var(--target);display:inline-flex;align-items:center;justify-content:center;gap:var(--space);
   padding:0 calc(var(--space) * 2);border:1px solid var(--viz-line-strong);border-radius:var(--radius);background:transparent;color:var(--viz-soft);
   font-size:var(--step--1);font-weight:700;letter-spacing:-.01em;cursor:pointer;isolation:isolate;
   transition:border-color var(--duration-state),color var(--duration-state),background-color var(--duration-state),opacity var(--duration-state)}
 /* 상태층: 색을 새로 만들지 않고 글자색을 얇게 덮어 hover/pressed를 표시한다 */
-.btn::before,.vbar button::before,.sl-actions button::before,.measure-body button::before,.sam-open::before{
+.btn::before,.vbar button::before,.sl-actions button::before,.measure-body button::before,.sam-open::before,.circ-views button::before{
   content:"";position:absolute;inset:0;border-radius:inherit;background:currentColor;opacity:0;z-index:-1;transition:opacity var(--duration-state)}
-:is(.btn,.vbar button,.sl-actions button,.measure-body button,.sam-open):hover:not(:disabled){color:var(--viz-ink);border-color:var(--viz-muted)}
-:is(.btn,.vbar button,.sl-actions button,.measure-body button,.sam-open):hover:not(:disabled)::before{opacity:var(--state-hover-opacity)}
-:is(.btn,.vbar button,.sl-actions button,.measure-body button,.sam-open):active:not(:disabled)::before{opacity:var(--state-pressed-opacity)}
-:is(.btn,.vbar button,.sl-actions button,.measure-body button,.sam-open):focus-visible{outline:2px solid var(--viz-ink);outline-offset:3px}
-:is(.btn,.vbar button,.sl-actions button,.measure-body button,.sam-open):disabled{opacity:var(--state-disabled-opacity);cursor:not-allowed}
+:is(.btn,.vbar button,.sl-actions button,.measure-body button,.sam-open,.circ-views button):hover:not(:disabled){color:var(--viz-ink);border-color:var(--viz-muted)}
+:is(.btn,.vbar button,.sl-actions button,.measure-body button,.sam-open,.circ-views button):hover:not(:disabled)::before{opacity:var(--state-hover-opacity)}
+:is(.btn,.vbar button,.sl-actions button,.measure-body button,.sam-open,.circ-views button):active:not(:disabled)::before{opacity:var(--state-pressed-opacity)}
+:is(.btn,.vbar button,.sl-actions button,.measure-body button,.sam-open,.circ-views button):focus-visible{outline:2px solid var(--viz-ink);outline-offset:3px}
+:is(.btn,.vbar button,.sl-actions button,.measure-body button,.sam-open,.circ-views button):disabled{opacity:var(--state-disabled-opacity);cursor:not-allowed}
 /* 선택됨: 질환색을 70%로 어둡게 해 흰 글자 대비를 16색 모두 5.2:1 이상으로 맞춘다 */
-.vbar button[aria-pressed="true"]{--pressed:color-mix(in srgb,var(--color) 70%,#000);background:var(--pressed);border-color:var(--pressed);color:var(--viz-ink)}
+.vbar button[aria-pressed="true"],.circ-views button[aria-pressed="true"]{--pressed:color-mix(in srgb,var(--color) 70%,#000);background:var(--pressed);border-color:var(--pressed);color:var(--viz-ink)}
 
 /* ================= 장면 ================= */
 .stage{position:fixed;inset:0;overflow:hidden;background:var(--surface);transition:background var(--duration-scene)}
@@ -209,7 +209,11 @@ button{font:inherit;color:inherit}
 .p-stats small{font-size:var(--step--1);color:var(--viz-muted);margin-left:2px}
 
 /* 정서 원형도 · VAD 막대 */
-.circ{width:100%;max-width:320px;display:block;margin:0 auto 6px;overflow:visible}
+.circ{width:100%;max-width:320px;display:block;margin:0 auto 6px;overflow:visible;cursor:grab;touch-action:pan-y;user-select:none}
+.circ:active{cursor:grabbing}
+.circ .plane{fill:var(--color);fill-opacity:.07;stroke:var(--color);stroke-opacity:.35;stroke-width:1}
+.circ .drop{stroke-width:1;stroke-opacity:.45;stroke-dasharray:2 2}
+.circ-views{display:flex;flex-wrap:wrap;justify-content:center;gap:4px;margin:0 0 calc(var(--space) * 1.5)}
 .circ .ax{stroke:var(--viz-line-strong);stroke-width:1}
 .circ .ring{fill:none;stroke:var(--viz-line);stroke-width:1}
 .circ .q{fill:var(--viz-subtle);font-size:10px}
@@ -363,3 +367,5 @@ button{font:inherit;color:inherit}
 @media (max-width:640px) and (orientation:portrait){ .mposter-mast{display:block} }
 
 @media (prefers-reduced-motion:reduce){.stage *{transition-duration:0s!important;animation:none!important}}
+
+.circ-views button{padding:0 calc(var(--space) * 1.5)}
